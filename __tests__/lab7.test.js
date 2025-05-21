@@ -21,7 +21,7 @@ describe('Basic user flow for Website', () => {
   // Check to make sure that all 20 <product-item> elements have data in them
   // We use .skip() here because this test has a TODO that has not been completed yet.
   // Make sure to remove the .skip after you finish the TODO. 
-  it.skip('Make sure <product-item> elements are populated', async () => {
+  it('Make sure <product-item> elements are populated', async () => {
     console.log('Checking to make sure <product-item> elements are populated...');
 
     // Start as true, if any don't have data, swap to false
@@ -31,33 +31,38 @@ describe('Basic user flow for Website', () => {
     const prodItemsData = await page.$$eval('product-item', prodItems => {
       return prodItems.map(item => {
         // Grab all of the json data stored inside
-        return data = item.data;
+        // Extracts data from each product-item, array of data objects
+        return prodItems.map(item => item.data); 
       });
     });
+    for (let i = 0; i < prodItemsData.length; i++) {
+      console.log(`Checking product item 1/${prodItemsData.length}`);
+      // Make sure the title, price, and image are populated in the JSON
+      firstValue = prodItemsData[i];
+      if (!firstValue || !firstValue.title || !firstValue.price || !firstValue.image) {
+        allArePopulated = false;
+        break;
+      }
+      if (firstValue.title.length == 0) { allArePopulated = false; }
+      if (firstValue.price.length == 0) { allArePopulated = false; }
+      if (firstValue.image.length == 0) { allArePopulated = false; }
 
-    console.log(`Checking product item 1/${prodItemsData.length}`);
+      // Expect allArePopulated to still be true
+      expect(allArePopulated).toBe(true);
 
-    // Make sure the title, price, and image are populated in the JSON
-    firstValue = prodItemsData[0];
-    if (firstValue.title.length == 0) { allArePopulated = false; }
-    if (firstValue.price.length == 0) { allArePopulated = false; }
-    if (firstValue.image.length == 0) { allArePopulated = false; }
+      /**
+      **** TODO - STEP 1 ****
+      * Right now this function is only checking the first <product-item> it found, make it so that
+        it checks every <product-item> it found
+      * Remove the .skip from this it once you are finished writing this test.
+      */
 
-    // Expect allArePopulated to still be true
-    expect(allArePopulated).toBe(true);
-
-    /**
-    **** TODO - STEP 1 ****
-    * Right now this function is only checking the first <product-item> it found, make it so that
-      it checks every <product-item> it found
-    * Remove the .skip from this it once you are finished writing this test.
-    */
-
+    }
   }, 10000);
 
   // Check to make sure that when you click "Add to Cart" on the first <product-item> that
   // the button swaps to "Remove from Cart"
-  it.skip('Clicking the "Add to Cart" button should change button text', async () => {
+  it('Clicking the "Add to Cart" button should change button text', async () => {
     console.log('Checking the "Add to Cart" button...');
 
     /**
@@ -68,12 +73,24 @@ describe('Basic user flow for Website', () => {
      * Once you have the innerText property, use innerText.jsonValue() to get the text value of it
      * Remember to remove the .skip from this it once you are finished writing this test.
      */
+      // 1) In the page, click the first product-item's button
+      await page.$eval('product-item', item => {
+        const btn = item.shadowRoot.querySelector('button');
+        btn.click();
+      });
 
+      // 2) Immediately read its innerText back
+      const buttonText = await page.$eval('product-item', item => 
+        item.shadowRoot.querySelector('button').innerText
+      );
+
+      // 3) Verify it switched
+      expect(buttonText).toBe('Remove from Cart');
   }, 2500);
 
   // Check to make sure that after clicking "Add to Cart" on every <product-item> that the Cart
   // number in the top right has been correctly updated
-  it.skip('Checking number of items in cart on screen', async () => {
+  it('Checking number of items in cart on screen', async () => {
     console.log('Checking number of items in cart on screen...');
 
     /**
@@ -83,11 +100,23 @@ describe('Basic user flow for Website', () => {
      * Check to see if the innerText of #cart-count is 20
      * Remember to remove the .skip from this it once you are finished writing this test.
      */
+  // Step 3: click "Add to Cart" on every <product-item> button
+    await page.$$eval('product-item', items => {
+      items.forEach(item => {
+        const btn = item.shadowRoot.querySelector('button');
+        if (btn.innerText === 'Add to Cart') {
+          btn.click();
+        }
+      });
+    });
 
+    // now the cart‐count in the top right should be "20"
+    const cartCount = await page.$eval('#cart-count', el => el.innerText);
+    expect(cartCount).toBe('20');
   }, 10000);
 
   // Check to make sure that after you reload the page it remembers all of the items in your cart
-  it.skip('Checking number of items in cart on screen after reload', async () => {
+  it('Checking number of items in cart on screen after reload', async () => {
     console.log('Checking number of items in cart on screen after reload...');
 
     /**
@@ -98,10 +127,26 @@ describe('Basic user flow for Website', () => {
      * Remember to remove the .skip from this it once you are finished writing this test.
      */
 
+    // 1. reload and wait for items to render
+    await page.reload();
+    await page.waitForSelector('product-item');
+
+    // 2. check every button says "Remove from Cart"
+    const allButtonsAreRemove = await page.$$eval(
+      'product-item',
+      items => items.every(item =>
+        item.shadowRoot.querySelector('button').innerText === 'Remove from Cart'
+      )
+    );
+    expect(allButtonsAreRemove).toBe(true);
+
+    // 3. check the cart count stayed at 20
+    const count = await page.$eval('#cart-count', el => el.innerText);
+    expect(count).toBe('20');
   }, 10000);
 
   // Check to make sure that the cart in localStorage is what you expect
-  it.skip('Checking the localStorage to make sure cart is correct', async () => {
+  it('Checking the localStorage to make sure cart is correct', async () => {
 
     /**
      **** TODO - STEP 5 **** 
@@ -109,12 +154,16 @@ describe('Basic user flow for Website', () => {
        '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]', check to make sure it is
      * Remember to remove the .skip from this it once you are finished writing this test.
      */
+      // Pull the stringified cart out of localStorage in the browser
+      const cart = await page.evaluate(() => localStorage.getItem('cart'));
+      // It should exactly match all twenty IDs
+      expect(cart).toBe('[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]');
 
   });
 
   // Checking to make sure that if you remove all of the items from the cart that the cart
   // number in the top right of the screen is 0
-  it.skip('Checking number of items in cart on screen after removing from cart', async () => {
+  it('Checking number of items in cart on screen after removing from cart', async () => {
     console.log('Checking number of items in cart on screen...');
 
     /**
@@ -124,11 +173,25 @@ describe('Basic user flow for Website', () => {
      * Remember to remove the .skip from this it once you are finished writing this test.
      */
 
+
+    // STEP 6: click "Remove from Cart" on every <product-item> button
+    await page.$$eval('product-item', items => {
+      items.forEach(item => {
+        const btn = item.shadowRoot.querySelector('button');
+        if (btn.innerText === 'Remove from Cart') {
+          btn.click();
+        }
+      });
+    });
+
+    // now the counter should read "0"
+    const count = await page.$eval('#cart-count', el => el.innerText);
+    expect(count).toBe('0');
   }, 10000);
 
   // Checking to make sure that it remembers us removing everything from the cart
   // after we refresh the page
-  it.skip('Checking number of items in cart on screen after reload', async () => {
+  it('Checking number of items in cart on screen after reload', async () => {
     console.log('Checking number of items in cart on screen after reload...');
 
     /**
@@ -139,11 +202,26 @@ describe('Basic user flow for Website', () => {
      * Remember to remove the .skip from this it once you are finished writing this test.
      */
 
+    // 1) reload the page and wait for the items to show up
+    await page.reload();
+    await page.waitForSelector('product-item');
+
+    // 2) assert every <product-item> button says "Add to Cart"
+    const allAreAdd = await page.$$eval('product-item', items =>
+      items.every(item =>
+        item.shadowRoot.querySelector('button').innerText === 'Add to Cart'
+      )
+    );
+    expect(allAreAdd).toBe(true);
+
+    // 3) assert the cart-count is "0"
+    const count = await page.$eval('#cart-count', el => el.innerText);
+    expect(count).toBe('0');
   }, 10000);
 
   // Checking to make sure that localStorage for the cart is as we'd expect for the
   // cart being empty
-  it.skip('Checking the localStorage to make sure cart is correct', async () => {
+  it('Checking the localStorage to make sure cart is correct', async () => {
     console.log('Checking the localStorage...');
 
     /**
@@ -151,6 +229,11 @@ describe('Basic user flow for Website', () => {
      * At this point he item 'cart' in localStorage should be '[]', check to make sure it is
      * Remember to remove the .skip from this it once you are finished writing this test.
      */
+    // Grab the 'cart' value from localStorage
+    const cart = await page.evaluate(() => localStorage.getItem('cart'));
+
+    // It should now be an empty array
+    expect(cart).toBe('[]');
 
   });
 });
